@@ -2,5 +2,11 @@
 	"settings": {
 		"httpPort": 80,
 		"queenbridgeUrl": "http://localhost:8080"
+	},
+	"db": {
+		"dialect": "sqlite",
+		"storage": "./terminal.db",
+		"logging": false		
 	}
+	
 }

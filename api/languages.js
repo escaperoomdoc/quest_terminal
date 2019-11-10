@@ -1,7 +1,8 @@
 
-function apiLanguagesGet(app, req, res) {
+async function apiLanguagesGet(app, req, res) {
 	try {
-		
+		result = await app.db.rooms.findAll({raw: true});
+		res.status(200).json(responseBody);
 	}
 	catch(error) {
 		return res.status(400).json({error: 'get /api/languages: ' + error});
