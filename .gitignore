@@ -4,3 +4,4 @@
 /temp
 package-lock.json
 .env
+/db/backup
