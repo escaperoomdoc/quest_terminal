@@ -1,0 +1,6 @@
+{
+	"settings": {
+		"httpPort": 80,
+		"queenbridgeUrl": "http://localhost:8080"
+	}
+}
