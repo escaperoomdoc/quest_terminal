@@ -55,7 +55,7 @@ function defineRooms(sequelize) {
 			allowNull: false,
 			unique: true
 		},
-		ipRpi: {
+		rpi: {
 			type: Sequelize.STRING
 		},
 		order: {
@@ -64,7 +64,6 @@ function defineRooms(sequelize) {
 	});
 	return Rooms;
 }
-
 
 function defineTexts(sequelize) {
 	const Texts = sequelize.define("texts",
@@ -99,16 +98,10 @@ function defineVideos(sequelize) {
 			type: Sequelize.STRING,
 			allowNull: false,
 			unique: true
-		},
-		path: {
-			type: Sequelize.STRING,
-			allowNull: false,
-			unique: true
 		}
 	});
 	return Videos;
 }
-
 
 module.exports = async (app) => {
 	try {
@@ -123,6 +116,7 @@ module.exports = async (app) => {
 		app.db.rooms = defineRooms(sequelize);
 		app.db.texts = defineTexts(sequelize);
 		app.db.videos = defineVideos(sequelize);
+		app.db.texts.belongsTo(app.db.languages, {foreignKey: 'languageId'});
 		// ... other tables
 		await sequelize.sync();
 		console.log('sequelize: sync succeded');

@@ -12,7 +12,9 @@ async function apiCategoriesGet(app, req, res) {
 
 async function apiCategoriesPut(app, req, res) {
 	try {
-		await app.db.categories.update(req.body, {where: {id: req.params.id}});
+		if (req.body.id && req.body.id !== req.params.id) throw 'wrong body id';
+		var affectedCount = await app.db.categories.update(req.body, {where: {id: req.params.id}});
+		if (!affectedCount[0]) throw 'object not found';
 		res.status(200).json({});
 	}
 	catch(error) {
@@ -32,14 +34,12 @@ async function apiCategoriesDelete(app, req, res) {
 
 async function apiCategoriesPost(app, req, res) {
 	try {
-		result = await app.db.categories.create({
-			id: uuid.v4(),
-			name: req.body.name
-		});
+		req.body.id = req.body.id ? req.body.id : uuid.v4();
+		result = await app.db.categories.create(req.body);
 		res.status(200).json(result);
 	}
 	catch(error) {
-		return res.status(400).json({error: 'delete /api/categories: ' + error});
+		return res.status(400).json({error: 'post /api/categories: ' + error});
 	}
 }
 

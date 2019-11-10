@@ -12,7 +12,9 @@ async function apiLanguagesGet(app, req, res) {
 
 async function apiLanguagesPut(app, req, res) {
 	try {
-		await app.db.languages.update(req.body, {where: {id: req.params.id}});
+		if (req.body.id && req.body.id !== req.params.id) throw 'wrong body id';
+		var affectedCount = await app.db.languages.update(req.body, {where: {id: req.params.id}});
+		if (!affectedCount[0]) throw 'object not found';
 		res.status(200).json({});
 	}
 	catch(error) {
@@ -32,14 +34,12 @@ async function apiLanguagesDelete(app, req, res) {
 
 async function apiLanguagesPost(app, req, res) {
 	try {
-		result = await app.db.languages.create({
-			id: uuid.v4(),
-			name: req.body.name
-		});
+		req.body.id = req.body.id ? req.body.id : uuid.v4();
+		result = await app.db.languages.create(req.body);
 		res.status(200).json(result);
 	}
 	catch(error) {
-		return res.status(400).json({error: 'delete /api/languages: ' + error});
+		return res.status(400).json({error: 'post /api/languages: ' + error});
 	}
 }
 
