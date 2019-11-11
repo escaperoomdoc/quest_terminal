@@ -97,6 +97,18 @@ function concatVideos(input, target) {
 	})
 }
 
+/*
+function concatVideos(input, output) {
+	return new Promise((resolve, reject) => {
+		fs.copyFileSync(input[1], 'public/video.mp4');
+		exec(`ffmpeg -f concat -i filelist.txt -codec copy 'public/assets/output.mp4'`, function (error, stdout, stderr) {
+			exec('rm ./public/video.mp4');
+			console.log(output_filename + " generated");
+		});
+	})
+}
+*/
+
 async function apiVideosPost(app, req, res) {
 	var resultFile = null;
 	try {
