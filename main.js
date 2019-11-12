@@ -4,6 +4,8 @@ const cors = require('cors');
 const config = require('./config.json');
 const api = require('./api');
 const db = require('./db');
+const path = require('path');
+
 /*
 const publicapp = require('./publicapp');
 const queenbridge = require('./queenbridge');
@@ -16,6 +18,7 @@ app.config = config;
 app.use(express.json());
 app.use(cors());
 app.use(express.static('public'));
+app.appRoot = path.resolve(__dirname);
 
 // start http server
 var httpServer = http.createServer(app);

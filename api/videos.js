@@ -38,9 +38,9 @@ async function apiVideosPut(app, req, res) {
 
 async function apiVideosDelete(app, req, res) {
 	try {
-		var targetPath = './assets/' + req.params.id + '.mp4';
+		var targetPath = './public/assets/' + req.params.id + '.mp4';
 		fs.unlink(targetPath, (error) => {
-			console.log("error on delete: " + targetPath);
+			if (error) console.log("error on delete: " + targetPath);
 		});
 		await app.db.videos.destroy({where: {id: req.params.id}});
 		res.status(200).json({});
@@ -50,73 +50,36 @@ async function apiVideosDelete(app, req, res) {
 	}
 }
 
-/*
-var fluent_ffmpeg = require("fluent-ffmpeg");
-var mergedVideo = fluent_ffmpeg();
+// this code is taken from the 'video-stitch' project. Anyway, to use concat videos in ubuntu
+// we should install ffmpeg on win32 or linux (sudo apt-get install ffmpeg) and tmp + shelljs libs:
+let tmp = require('tmp');
+let shelljs = require('shelljs');
+
 function concatVideos(input, output) {
 	return new Promise((resolve, reject) => {
-		mergedVideo
-		.mergeAdd(input[0])
-		.mergeAdd(input[1])
-		.on('error', function(error) {
-			reject(error.message);
-		})
-		.on('end', function() {
-			resolve();
-		})
-		.mergeToFile(output);
-	})
-}
-*/
-
-var videoStitch = require('video-stitch');
-var videoConcat = videoStitch.concat;
-
-function concatVideos(input, target) {
-	return new Promise((resolve, reject) => {
-		videoConcat({
-			silent: true, // optional. if set to false, gives detailed output on console
-			overwrite: false // optional. by default, if file already exists, ffmpeg will ask for overwriting in console and that pause the process. if set to true, it will force overwriting. if set to false it will prevent overwriting.
-		})
-		.clips([
-			{
-				"fileName": input[0]
-			},
-			{
-				"fileName": input[1]
+		var fileList = tmp.tmpNameSync({postfix: '.txt'});
+		fileListText = `file '${input[0]}'\nfile '${input[1]}'\n`
+		fs.writeFileSync(fileList, fileListText, 'utf8');
+		var child = shelljs.exec(`ffmpeg -f concat -safe 0 -i ${fileList} -c copy ${output} -y`, { async: true, silent: true });
+		child.on('exit', (code, signal) => {
+			if (code === 0) {
+				resolve(output);
+			} else {
+				reject();
 			}
-		])
-		.output(target)
-		.concat()
-		.then((fname) => {
-			resolve(fname);
-		})
-		.catch((error) => {
-			reject(error);
 		});
 	})
 }
-
-/*
-function concatVideos(input, output) {
-	return new Promise((resolve, reject) => {
-		fs.copyFileSync(input[1], 'public/video.mp4');
-		exec(`ffmpeg -f concat -i filelist.txt -codec copy 'public/assets/output.mp4'`, function (error, stdout, stderr) {
-			exec('rm ./public/video.mp4');
-			console.log(output_filename + " generated");
-		});
-	})
-}
-*/
 
 async function apiVideosPost(app, req, res) {
 	var resultFile = null;
 	try {
 		req.body.id = req.body.id ? req.body.id : uuid.v4();
 		var ext = path.extname(req.files.video.path);
-		var targetPath = './public/assets/' + req.body.id + ext;
-		resultFile = await concatVideos(['./public/countdown.mp4', req.files.video.path], targetPath);
+		var targetPath = app.appRoot + '/public/assets/' + req.body.id + ext;
+		resultFile = await concatVideos([app.appRoot + '/public/countdown.mp4', req.files.video.path], targetPath);
 		result = await app.db.videos.create({id: req.body.id, name: req.body.name});
+		result = result.toJSON();
 		result.path = '/assets/' + req.body.id + '.mp4';
 		res.status(200).json(result);
 	}
