@@ -1,7 +1,11 @@
 {
-	"test": [
-		"1",
-		"2",
-		"3"
+	"textTypes": [
+		"HINT_TEXT",
+		"TASK_TEXT",
+		"PER_YEAR",
+		"PER_MONTH",
+		"TASK_LABEL",
+		"SCORE_LABEL",
+		"TEAM_LABEL"		
 	]
 }

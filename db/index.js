@@ -32,17 +32,6 @@ function defineLanguages(sequelize) {
 	return Languages;
 }
 
-function defineQuestions(sequelize) {
-	const Questions = sequelize.define("questions",
-	{
-		id: {
-			type: Sequelize.UUID,
-			primaryKey: true
-		}
-	});
-	return Questions;
-}
-
 function defineRooms(sequelize) {
 	const Rooms = sequelize.define("rooms",
 	{
@@ -77,14 +66,45 @@ function defineTexts(sequelize) {
 			allowNull: false,
 		},
 		name: {
-			type: Sequelize.STRING,
-			allowNull: false,
+			type: Sequelize.STRING
 		},		
 		text: {
 			type: Sequelize.STRING
 		}
 	});
 	return Texts;
+}
+
+function defineQuestions(sequelize) {
+	const Questions = sequelize.define("questions",
+	{
+		id: {
+			type: Sequelize.UUID,
+			primaryKey: true
+		},
+		categoryId: {
+			type: Sequelize.UUID,
+			allowNull: false,
+		},
+		languageId: {
+			type: Sequelize.UUID,
+			allowNull: false,
+		},
+		videoId: {
+			type: Sequelize.UUID,
+			allowNull: false,
+		},		
+		text: {
+			type: Sequelize.STRING
+		},		
+		variants: {
+			type: Sequelize.STRING
+		},		
+		answer: {
+			type: Sequelize.STRING
+		}
+	});
+	return Questions;
 }
 
 function defineVideos(sequelize) {
@@ -117,6 +137,9 @@ module.exports = async (app) => {
 		app.db.texts = defineTexts(sequelize);
 		app.db.videos = defineVideos(sequelize);
 		app.db.texts.belongsTo(app.db.languages, {foreignKey: 'languageId'});
+		app.db.questions.belongsTo(app.db.categories, {foreignKey: 'categoryId'});
+		app.db.questions.belongsTo(app.db.languages, {foreignKey: 'languageId'});
+		app.db.questions.belongsTo(app.db.videos, {foreignKey: 'videoId'});
 		// ... other tables
 		await sequelize.sync();
 		console.log('sequelize: sync succeded');
