@@ -6,5 +6,7 @@ module.exports = (app) => {
 	require('./rooms')(app);
 	require('./texts')(app);
 	require('./videos')(app);
+	app.get('*', (req, res, next) => {
+		res.sendFile(app.appRoot + "/public/index.html");
+	});	
 };
-
