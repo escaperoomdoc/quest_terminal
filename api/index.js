@@ -8,8 +8,11 @@ module.exports = (app) => {
 	require('./videos')(app);
 	app.get('/api/glossary', (req, res, next) => {
 		res.status(200).json(app.db.static);
+	});
+	app.get('/api/*', (req, res, next) => {
+		return res.status(400).json({error: 'not implemented'});
 	});		
 	app.get('*', (req, res, next) => {
-		res.sendFile(app.appRoot + "/public/index.html");
+		return res.sendFile(app.appRoot + "/public/index.html");
 	});	
 };
