@@ -63,8 +63,12 @@ function defineTexts(sequelize) {
 		},
 		languageId: {
 			type: Sequelize.UUID,
-			allowNull: false,
+			allowNull: false
 		},
+		roomId: {
+			type: Sequelize.UUID,
+			allowNull: true
+		},		
 		name: {
 			type: Sequelize.STRING
 		},		
@@ -84,15 +88,15 @@ function defineQuestions(sequelize) {
 		},
 		categoryId: {
 			type: Sequelize.UUID,
-			allowNull: false,
+			allowNull: false
 		},
 		languageId: {
 			type: Sequelize.UUID,
-			allowNull: false,
+			allowNull: false
 		},
 		videoId: {
 			type: Sequelize.UUID,
-			allowNull: false,
+			allowNull: false
 		},		
 		text: {
 			type: Sequelize.STRING
@@ -137,6 +141,7 @@ module.exports = async (app) => {
 		app.db.texts = defineTexts(sequelize);
 		app.db.videos = defineVideos(sequelize);
 		app.db.texts.belongsTo(app.db.languages, {foreignKey: 'languageId'});
+		app.db.texts.belongsTo(app.db.rooms, {foreignKey: 'roomId'});
 		app.db.questions.belongsTo(app.db.categories, {foreignKey: 'categoryId'});
 		app.db.questions.belongsTo(app.db.languages, {foreignKey: 'languageId'});
 		app.db.questions.belongsTo(app.db.videos, {foreignKey: 'videoId'});
