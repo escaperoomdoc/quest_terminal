@@ -127,6 +127,56 @@ function defineVideos(sequelize) {
 	return Videos;
 }
 
+function defineTeams(sequelize) {
+	const Teams = sequelize.define("teams",
+	{
+		id: {
+			type: Sequelize.UUID,
+			primaryKey: true
+		},
+		categoryId: {
+			type: Sequelize.UUID,
+			allowNull: false
+		},
+		languageId: {
+			type: Sequelize.UUID,
+			allowNull: false
+		},
+		members: {
+			type: Sequelize.INTEGER
+		},
+		points: {
+			type: Sequelize.INTEGER
+		},
+		timeofBegin: {
+			type: Sequelize.DATE
+		},
+		timeofEnd: {
+			type: Sequelize.DATE
+		}
+	});
+	return Teams;
+}
+
+function defineTimes(sequelize) {
+	const Times = sequelize.define("times",
+	{
+		id: {
+			type: Sequelize.UUID,
+			primaryKey: true
+		},
+		name: {
+			type: Sequelize.STRING,
+			allowNull: false
+		},
+		value: {
+			type: Sequelize.INTEGER,
+			allowNull: false
+		}
+	});
+	return Times;
+}
+
 module.exports = async (app) => {
 	try {
 		app.db = {};
@@ -140,11 +190,15 @@ module.exports = async (app) => {
 		app.db.rooms = defineRooms(sequelize);
 		app.db.texts = defineTexts(sequelize);
 		app.db.videos = defineVideos(sequelize);
+		app.db.teams = defineTeams(sequelize);
+		app.db.times = defineTimes(sequelize);
 		app.db.texts.belongsTo(app.db.languages, {foreignKey: 'languageId'});
 		app.db.texts.belongsTo(app.db.rooms, {foreignKey: 'roomId'});
 		app.db.questions.belongsTo(app.db.categories, {foreignKey: 'categoryId'});
 		app.db.questions.belongsTo(app.db.languages, {foreignKey: 'languageId'});
 		app.db.questions.belongsTo(app.db.videos, {foreignKey: 'videoId'});
+		app.db.teams.belongsTo(app.db.categories, {foreignKey: 'categoryId'});
+		app.db.teams.belongsTo(app.db.languages, {foreignKey: 'languageId'});
 		// ... other tables
 		await sequelize.sync();
 		console.log('sequelize: sync succeded');

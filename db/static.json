@@ -7,5 +7,14 @@
 		"TASK_LABEL",
 		"SCORE_LABEL",
 		"TEAM_LABEL"		
+	],
+	"timeTypes": [
+		"GENERIC_ROOM",
+		"DEMO_ROOM",
+		"START_ROOM",
+		"ARENA",
+		"QUIZ",
+		"TEAMS_INTERVAL",
+		"COUNTDOWN"
 	]
 }

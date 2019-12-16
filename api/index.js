@@ -6,6 +6,8 @@ module.exports = (app) => {
 	require('./rooms')(app);
 	require('./texts')(app);
 	require('./videos')(app);
+	require('./teams')(app);
+	require('./times')(app);
 	app.get('/api/glossary', (req, res, next) => {
 		res.status(200).json(app.db.static);
 	});
