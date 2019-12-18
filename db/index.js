@@ -134,6 +134,11 @@ function defineTeams(sequelize) {
 			type: Sequelize.UUID,
 			primaryKey: true
 		},
+		name: {
+			type: Sequelize.STRING,
+			allowNull: false,
+			unique: true
+		},
 		categoryId: {
 			type: Sequelize.UUID,
 			allowNull: false
