@@ -1,12 +1,12 @@
 {
 	"settings": {
 		"httpPort": 80,
-		"queenbridgeUrl": "http://localhost:8080"
+		"queenbridgeUrl": "http://dsi.su:3030"
 	},
 	"db": {
 		"dialect": "sqlite",
 		"storage": "./terminal.db",
-		"logging": false		
+		"logging": false
 	}
-	
+
 }
