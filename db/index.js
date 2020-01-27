@@ -162,7 +162,7 @@ function defineTeams(sequelize) {
 		},
 		finished: {
 			type: Sequelize.BOOLEAN,
-			defaultValue: true
+			defaultValue: false
 		},
 	});
 	return Teams;
