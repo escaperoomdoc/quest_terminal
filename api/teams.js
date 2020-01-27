@@ -10,6 +10,16 @@ async function apiTeamsGet(app, req, res) {
 	}
 }
 
+async function apiActiveTeamsGet(app, req, res) {
+	try {
+		result = await app.db.teams.findAll({ where: { finished: false }, raw: true });
+		res.status(200).json(result);
+	}
+	catch(error) {
+		return res.status(400).json({error: 'get /api/teams: ' + error});
+	}
+}
+
 async function apiTeamsPut(app, req, res) {
 	try {
 		if (req.body.id && req.body.id !== req.params.id) throw 'wrong body id';
@@ -46,6 +56,9 @@ async function apiTeamsPost(app, req, res) {
 module.exports = (app) => {
 	app.get( "/api/teams", (req, res) => {
 		apiTeamsGet(app, req, res);
+	});
+	app.get( "/api/teams/active", (req, res) => {
+		apiActiveTeamsGet(app, req, res);
 	});
 	app.put( "/api/teams/:id", (req, res) => {
 		apiTeamsPut(app, req, res);
