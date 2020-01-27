@@ -68,10 +68,10 @@ function defineTexts(sequelize) {
 		roomId: {
 			type: Sequelize.UUID,
 			allowNull: true
-		},		
+		},
 		name: {
 			type: Sequelize.STRING
-		},		
+		},
 		text: {
 			type: Sequelize.STRING
 		}
@@ -97,13 +97,13 @@ function defineQuestions(sequelize) {
 		videoId: {
 			type: Sequelize.UUID,
 			allowNull: false
-		},		
+		},
 		text: {
 			type: Sequelize.STRING
-		},		
+		},
 		variants: {
 			type: Sequelize.STRING
-		},		
+		},
 		answer: {
 			type: Sequelize.STRING
 		}
@@ -151,14 +151,19 @@ function defineTeams(sequelize) {
 			type: Sequelize.INTEGER
 		},
 		points: {
-			type: Sequelize.INTEGER
+			type: Sequelize.INTEGER,
+			defaultValue: 0
 		},
 		timeofBegin: {
 			type: Sequelize.DATE
 		},
 		timeofEnd: {
 			type: Sequelize.DATE
-		}
+		},
+		finished: {
+			type: Sequelize.BOOLEAN,
+			defaultValue: true
+		},
 	});
 	return Teams;
 }
