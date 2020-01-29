@@ -6,14 +6,13 @@
 		"PER_MONTH",
 		"TASK_LABEL",
 		"SCORE_LABEL",
-		"TEAM_LABEL"		
+		"TEAM_LABEL"
 	],
 	"timeTypes": [
 		"GENERIC_ROOM",
 		"DEMO_ROOM",
-		"START_ROOM",
+		"TRAINING_ROOM",
 		"ARENA",
-		"QUIZ",
 		"TEAMS_INTERVAL",
 		"COUNTDOWN"
 	]
