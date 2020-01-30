@@ -26,7 +26,7 @@ httpServer.listen(config.settings.httpPort, () => {});
 console.log(`terminal server started on ${config.settings.httpPort}...`);
 
 //vars
-let times, schedule, rooms;
+let times, schedule, rooms, activeTeams = {};
 
 db(app)
     .then(() =>{
@@ -37,11 +37,12 @@ db(app)
         getRooms().then((response) => {
             rooms = response;
         });
+        checkTeams();
     });
 api(app);
 
 let qb = new QueenBridge(config.settings.queenbridgeUrl, {
-    id: "bpm_terminal",
+    id: "bpm_terminal_",
     keepOffline: 10000,
     override: true
 });
@@ -53,14 +54,14 @@ qb.on('disconnect', function() {
     console.log('disconnected');
 });
 qb.on('receive', function(data) {
-    // console.log(data);
+    console.log('[Queen Bridge]: ' + JSON.stringify(data));
     let command = data.payload.command;
     switch(command) {
         case 'start':
             startGame(data.payload.id);
             break;
         case 'stop':
-            console.log(`stop game for ${data.payload.id} team`);
+            stopGame(data.payload.id);
             break;
     }
 });
@@ -119,6 +120,25 @@ async function getRooms() {
     }
 }
 
+async function checkTeams() {
+    try {
+        let { data: teams } = await axios.get('/teams');
+        for (let team of teams) {
+            if (!team.finished) {
+                if (team.timeofBegin || team.timeofBegin) {
+                    await axios.put('/teams/' + team.id, { finished: true });
+                }
+            }
+        }
+        rooms.sort((a, b) => a.order > b.order ? 1 : -1);
+        console.log('get rooms: '+ JSON.stringify(rooms));
+        return rooms;
+    }
+    catch (e) {
+        console.log(e);
+    }
+}
+
 function getSchedule() {
     let interval = times["TEAMS_INTERVAL"];
 
@@ -150,26 +170,66 @@ async function startGame(id) {
             return 0;
         }
         let timeofBegin = scheduleTeam(id);
-        //сделать расчёт времени окончания
         await axios.put('/teams/' + id, { timeofBegin });
         console.log(`start game for "${team.name}" at ${timeofBegin}`);
         team.timeofBegin = timeofBegin;
 
-        let now = new Date();
-        await sleep(timeofBegin - now);
-        await demoStage(team);
-        await sleep(times["DEMO_ROOM"] * 10);
-        await trainingStage(team);
-        await arenaStage(team);
-        await sleep(times["TRAINING_ROOM"] * 10);
+        activeTeams[id] = { timers: [] };
+        let ms = 1000;
+
+        activeTeams[id].timers.push(
+            setTimeout(countdownStage,
+                timeofBegin - Date.now() - times["COUNTDOWN"] * ms, team)
+        );
+        activeTeams[id].timers.push(
+            setTimeout(demoStage,
+                timeofBegin - Date.now(), team)
+        );
+        let delta = times["DEMO_ROOM"] * ms;
+        activeTeams[id].timers.push(
+            setTimeout(trainingStage,
+                timeofBegin - Date.now() + delta, team)
+        );
+        delta += times["TRAINING_ROOM"] * ms;
+        activeTeams[id].timers.push(
+            setTimeout(arenaStage,
+                timeofBegin - Date.now() + delta, team)
+        );
+        delta += times["ARENA"] * ms;
         for (let i = 3; i < rooms.length - 1; i++) {
-            await genericStage(team, rooms[i]);
-            await sleep(times["GENERIC_ROOM"] * 10);
-            await arenaStage(team);
-            await sleep(times["ARENA"] * 10);
+            activeTeams[id].timers.push(
+                setTimeout(genericStage,
+                    timeofBegin - Date.now() + delta, team, rooms[i])
+            );
+            delta += times["GENERIC_ROOM"] * ms;
+            activeTeams[id].timers.push(
+                setTimeout(arenaStage,
+                    timeofBegin - Date.now() + delta, team)
+            );
+            delta += times["ARENA"] * ms;
         }
-        await bonusStage(team);
-        await sleep(times["GENERIC_ROOM"] * 10);
+        activeTeams[id].timers.push(
+            setTimeout(bonusStage,
+                timeofBegin - Date.now() + delta, team)
+        );
+        delta += times["GENERIC_ROOM"] * ms;
+        activeTeams[id].timers.push(
+            setTimeout(finishStage,
+                timeofBegin - Date.now() + delta, team)
+        );
+        let timeofEnd = new Date(timeofBegin);
+        timeofEnd.setMilliseconds(timeofEnd.getMilliseconds() + delta);
+        await axios.put('/teams/' + id, { timeofEnd });
+    }
+    catch (e) {
+        console.log(e);
+    }
+}
+
+async function countdownStage(team) {
+    try {
+        let now = new Date();
+        console.log(`[${now}]: countdown stage for "${team.name}" started`);
     }
     catch (e) {
         console.log(e);
@@ -223,6 +283,42 @@ async function bonusStage(team, room = rooms[rooms.length - 1]) {
     }
     catch (e) {
         console.log(e);
+    }
+}
+
+async function finishStage(team) {
+    try {
+        let now = new Date();
+        console.log(`[${now}]: finish stage for "${team.name}" started`);
+    }
+    catch (e) {
+        console.log(e);
+    }
+}
+
+async function stopGame(id) {
+    try {
+        let { data: team } = await axios.get(`/teams/${id}`);
+        if (activeTeams.hasOwnProperty(id)) {
+            for (let timer of activeTeams[id].timers) {
+                clearTimeout(timer);
+            }
+            await axios.put('/teams/' + id, { timeofBegin: null, timeofEnd: null });
+            delete activeTeams[id];
+            for (let i = 0; i < schedule.length; i++) {
+                if (schedule[i].id === id) {
+                    delete schedule[i].id;
+                    break;
+                }
+            }
+            console.log(`stop game for "${team.name}"`);
+        } else {
+            console.log(`game for "${team.name}" didn't start yet`);
+            return 0;
+        }
+    }
+    catch (e) {
+
     }
 }
 
