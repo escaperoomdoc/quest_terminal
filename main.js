@@ -130,9 +130,6 @@ async function checkTeams() {
                 }
             }
         }
-        rooms.sort((a, b) => a.order > b.order ? 1 : -1);
-        console.log('get rooms: '+ JSON.stringify(rooms));
-        return rooms;
     }
     catch (e) {
         console.log(e);
@@ -228,8 +225,11 @@ async function startGame(id) {
 
 async function countdownStage(team) {
     try {
-        let now = new Date();
-        console.log(`[${now}]: countdown stage for "${team.name}" started`);
+        qb.send("terminal_countdown", {
+            team,
+            time: times["COUNTDOWN"]
+        });
+        console.log(`[${Date.now()}]: countdown stage for "${team.name}" started`);
     }
     catch (e) {
         console.log(e);
