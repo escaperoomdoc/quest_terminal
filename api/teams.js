@@ -2,17 +2,7 @@ const uuid = require("uuid");
 
 async function apiTeamsGet(app, req, res) {
 	try {
-		result = await app.db.teams.findAll({raw: true});
-		res.status(200).json(result);
-	}
-	catch(error) {
-		return res.status(400).json({error: 'get /api/teams: ' + error});
-	}
-}
-
-async function apiActiveTeamsGet(app, req, res) {
-	try {
-		result = await app.db.teams.findAll({ where: { finished: false }, raw: true });
+		result = await app.db.teams.findAll({ where: req.query, raw: true });
 		res.status(200).json(result);
 	}
 	catch(error) {
@@ -66,9 +56,6 @@ async function apiTeamsPost(app, req, res) {
 module.exports = (app) => {
 	app.get( "/api/teams", (req, res) => {
 		apiTeamsGet(app, req, res);
-	});
-	app.get( "/api/teams/active", (req, res) => {
-		apiActiveTeamsGet(app, req, res);
 	});
 	app.get( "/api/teams/:id", (req, res) => {
 		apiTeamGet(app, req, res);

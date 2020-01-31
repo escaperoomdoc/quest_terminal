@@ -2,7 +2,7 @@ const uuid = require("uuid");
 
 async function apiTextsGet(app, req, res) {
 	try {
-		result = await app.db.texts.findAll({raw: true});
+		result = await app.db.texts.findAll({ where: req.query, raw: true });
 		res.status(200).json(result);
 	}
 	catch(error) {
