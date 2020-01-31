@@ -66,6 +66,16 @@ qb.on('receive', function(data) {
     }
 });
 
+setTimeout(() => {
+    qb.topic("/terminal/time");
+}, 500);
+setInterval(() => {
+    qb.publish("/terminal/time", {
+        type: "time",
+        time: Date.now(),
+    });
+}, 1000);
+
 // let teamQueue = [];
 //
 // function queuingTeam(id) {
@@ -314,11 +324,10 @@ async function stopGame(id) {
             console.log(`stop game for "${team.name}"`);
         } else {
             console.log(`game for "${team.name}" didn't start yet`);
-            return 0;
         }
     }
     catch (e) {
-
+        console.log(e);
     }
 }
 
@@ -333,8 +342,4 @@ function scheduleTeam(id) {
         }
     }
     //написать здесь чистку старого расписания и составление нового
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
