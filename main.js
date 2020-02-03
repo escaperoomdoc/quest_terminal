@@ -26,7 +26,8 @@ httpServer.listen(config.settings.httpPort, () => {});
 console.log(`terminal server started on ${config.settings.httpPort}...`);
 
 //vars
-let times, schedule, rooms, activeTeams = {};
+let times, schedule, rooms, activeTeams = {}, texts;
+const ms = 1000;
 
 db(app)
     .then(() =>{
@@ -38,6 +39,9 @@ db(app)
             rooms = response;
         });
         checkTeams();
+        getTexts().then((response) => {
+            texts = response;
+        })
     });
 api(app);
 
@@ -130,6 +134,25 @@ async function getRooms() {
     }
 }
 
+async function getTexts() {
+    try {
+        let { data: languages } = await axios.get('/languages');
+        let { data: textsArray } = await axios.get('/texts');
+        let texts = {};
+        for (let language of languages) {
+            texts[language.id] = {};
+        }
+        for (let text of textsArray) {
+            texts[text.languageId][text.name] = text.text;
+        }
+        console.log('get texts: '+ JSON.stringify(texts));
+        return texts;
+    }
+    catch (e) {
+        console.log(e);
+    }
+}
+
 async function checkTeams() {
     try {
         let { data: teams } = await axios.get('/teams');
@@ -181,48 +204,48 @@ async function startGame(id) {
         console.log(`start game for "${team.name}" at ${timeofBegin}`);
         team.timeofBegin = timeofBegin;
 
-        activeTeams[id] = { timers: [] };
-        let ms = 1000;
 
+        activeTeams[id] = { timers: [] };
+        trainingStage(team.id, rooms[2]);
         activeTeams[id].timers.push(
             setTimeout(countdownStage,
-                timeofBegin - Date.now() - times["COUNTDOWN"] * ms, team)
+                timeofBegin - Date.now() - times["COUNTDOWN"] * ms, team.id)
         );
         activeTeams[id].timers.push(
             setTimeout(demoStage,
-                timeofBegin - Date.now(), team)
+                timeofBegin - Date.now(), team.id)
         );
         let delta = times["DEMO_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(trainingStage,
-                timeofBegin - Date.now() + delta, team)
+                timeofBegin - Date.now() + delta, team.id)
         );
         delta += times["TRAINING_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(arenaStage,
-                timeofBegin - Date.now() + delta, team)
+                timeofBegin - Date.now() + delta, team.id)
         );
         delta += times["ARENA"] * ms;
         for (let i = 3; i < rooms.length - 1; i++) {
             activeTeams[id].timers.push(
                 setTimeout(genericStage,
-                    timeofBegin - Date.now() + delta, team, rooms[i])
+                    timeofBegin - Date.now() + delta, team.id, rooms[i])
             );
             delta += times["GENERIC_ROOM"] * ms;
             activeTeams[id].timers.push(
                 setTimeout(arenaStage,
-                    timeofBegin - Date.now() + delta, team)
+                    timeofBegin - Date.now() + delta, team.id)
             );
             delta += times["ARENA"] * ms;
         }
         activeTeams[id].timers.push(
             setTimeout(bonusStage,
-                timeofBegin - Date.now() + delta, team)
+                timeofBegin - Date.now() + delta, team.id)
         );
         delta += times["GENERIC_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(finishStage,
-                timeofBegin - Date.now() + delta, team)
+                timeofBegin - Date.now() + delta, team.id)
         );
         let timeofEnd = new Date(timeofBegin);
         timeofEnd.setMilliseconds(timeofEnd.getMilliseconds() + delta);
@@ -235,11 +258,12 @@ async function startGame(id) {
 
 async function countdownStage(team) {
     try {
+        let now = new Date();
         qb.send("terminal_countdown", {
             team,
             time: times["COUNTDOWN"]
         });
-        console.log(`[${Date.now()}]: countdown stage for "${team.name}" started`);
+        console.log(`[${now}]: countdown stage for "${team.name}" started`);
     }
     catch (e) {
         console.log(e);
@@ -256,10 +280,33 @@ async function demoStage(team, room = rooms[1]) {
     }
 }
 
-async function trainingStage(team, room = rooms[2]) {
+async function trainingStage(id, room = rooms[2], question) {
     try {
+        const { data: team } = await axios.get(`/teams/${id}`);
         let now = new Date();
         console.log(`[${now}]: training stage for "${team.name}" started`);
+
+        qb.send("room_" + room.rpi, "setmode playing");
+        qb.send("terminal_" + room.rpi, {
+            team,
+            time: times["TRAINING_ROOM"],
+            question,
+            texts: {
+                task: texts[team.languageId]["TASK_TEXT"],
+                target: texts[team.languageId]["TARGET_LABEL"],
+                result: texts[team.languageId]["SCORE_LABEL"]
+            }
+        });
+
+        setTimeout(() => {
+            qb.send("room_" + room.rpi, "play siren.mef");
+        }, (times["TRAINING_ROOM"] - 30 ) * ms);
+        setTimeout(() => {
+            qb.send("room_" + room.rpi, "play countdown.mef");
+        }, (times["TRAINING_ROOM"] - 10 ) * ms);
+        setTimeout(() => {
+            qb.send("room_" + room.rpi, "setmode win");
+        }, times["TRAINING_ROOM"] * ms);
     }
     catch (e) {
         console.log(e);
