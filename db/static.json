@@ -6,6 +6,7 @@
 		"PER_MONTH",
 		"TASK_LABEL",
 		"SCORE_LABEL",
+		"TARGET_LABEL",
 		"TEAM_LABEL"
 	],
 	"timeTypes": [
