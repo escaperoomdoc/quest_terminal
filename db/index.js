@@ -49,7 +49,11 @@ function defineRooms(sequelize) {
 		},
 		order: {
 			type: Sequelize.INTEGER
-		}
+		},
+		points: {
+			type: Sequelize.JSON
+		},
+
 	});
 	return Rooms;
 }
