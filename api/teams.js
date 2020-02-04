@@ -16,7 +16,7 @@ async function apiTeamGet(app, req, res) {
 		res.status(200).json(result);
 	}
 	catch(error) {
-		return res.status(400).json({error: 'get /api/teams: ' + error});
+		return res.status(400).json({error: 'get /api/team: ' + error});
 	}
 }
 
