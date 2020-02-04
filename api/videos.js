@@ -77,7 +77,11 @@ async function apiVideosPost(app, req, res) {
 		req.body.id = req.body.id ? req.body.id : uuid.v4();
 		var ext = path.extname(req.files.video.path);
 		var targetPath = app.appRoot + '/public/assets/' + req.body.id + ext;
-		resultFile = await concatVideos([app.appRoot + '/public/countdown.mp4', req.files.video.path], targetPath);
+		var filesArray = [];
+		if (req.body.attachCountdown) filesArray.push(app.appRoot + '/public/countdown.mp4');
+		filesArray.push(req.files.video.path);
+		resultFile = await concatVideos(filesArray, targetPath);
+		//resultFile = await concatVideos([app.appRoot + '/public/countdown.mp4', req.files.video.path], targetPath);
 		result = await app.db.videos.create({id: req.body.id, name: req.body.name});
 		result = result.toJSON();
 		result.path = '/assets/' + req.body.id + '.mp4';
