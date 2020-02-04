@@ -78,7 +78,8 @@ module.exports = function QueenBridge(host, options) {
 				try {
 					for (msg of data.msgs) {
 						that.events['receive']({
-							id: msg.dstId,
+							id: msg.msgId,
+							srcId: msg.srcId,
 							payload: msg.payload
 						});
 					}
