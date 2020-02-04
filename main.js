@@ -59,14 +59,16 @@ qb.on('disconnect', function() {
 });
 qb.on('receive', function(data) {
     console.log('[Queen Bridge]: ' + JSON.stringify(data));
-    let command = data.payload.command;
-    switch(command) {
-        case 'start':
-            startGame(data.payload.id);
-            break;
-        case 'stop':
-            stopGame(data.payload.id);
-            break;
+    if (data.srcId === 'terminal_manager') {
+        let command = data.payload.command;
+        switch(command) {
+            case 'start':
+                startGame(data.payload.id);
+                break;
+            case 'stop':
+                stopGame(data.payload.id);
+                break;
+        }
     }
 });
 
@@ -153,6 +155,13 @@ async function getTexts() {
     }
 }
 
+async function getQuestions(languageId, categoryId) {
+    let { data: questions } = await axios.get(`/questions?languageId=${languageId}&categoryId=${categoryId}`);
+    questions.sort(() => Math.round(Math.random()) ? 1 : -1);
+    console.log('get questions: '+ JSON.stringify(questions));
+    return questions;
+}
+
 async function checkTeams() {
     try {
         let { data: teams } = await axios.get('/teams');
@@ -205,47 +214,51 @@ async function startGame(id) {
         team.timeofBegin = timeofBegin;
 
 
-        activeTeams[id] = { timers: [] };
-        trainingStage(team.id, rooms[2]);
+        activeTeams[id] = {
+            timers: [],
+            questions: []
+        };
+        activeTeams[id].questions = await getQuestions(team.languageId, team.categoryId);
+        trainingStage(team, rooms[2], activeTeams[id].questions[0]);
         activeTeams[id].timers.push(
             setTimeout(countdownStage,
-                timeofBegin - Date.now() - times["COUNTDOWN"] * ms, team.id)
+                timeofBegin - Date.now() - times["COUNTDOWN"] * ms, team)
         );
         activeTeams[id].timers.push(
             setTimeout(demoStage,
-                timeofBegin - Date.now(), team.id)
+                timeofBegin - Date.now(), team)
         );
         let delta = times["DEMO_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(trainingStage,
-                timeofBegin - Date.now() + delta, team.id)
+                timeofBegin - Date.now() + delta, team, rooms[2], activeTeams[id].questions[0])
         );
         delta += times["TRAINING_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(arenaStage,
-                timeofBegin - Date.now() + delta, team.id)
+                timeofBegin - Date.now() + delta, team)
         );
         delta += times["ARENA"] * ms;
         for (let i = 3; i < rooms.length - 1; i++) {
             activeTeams[id].timers.push(
                 setTimeout(genericStage,
-                    timeofBegin - Date.now() + delta, team.id, rooms[i])
+                    timeofBegin - Date.now() + delta, team, rooms[i])
             );
             delta += times["GENERIC_ROOM"] * ms;
             activeTeams[id].timers.push(
                 setTimeout(arenaStage,
-                    timeofBegin - Date.now() + delta, team.id)
+                    timeofBegin - Date.now() + delta, team)
             );
             delta += times["ARENA"] * ms;
         }
         activeTeams[id].timers.push(
             setTimeout(bonusStage,
-                timeofBegin - Date.now() + delta, team.id)
+                timeofBegin - Date.now() + delta, team)
         );
         delta += times["GENERIC_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(finishStage,
-                timeofBegin - Date.now() + delta, team.id)
+                timeofBegin - Date.now() + delta, team)
         );
         let timeofEnd = new Date(timeofBegin);
         timeofEnd.setMilliseconds(timeofEnd.getMilliseconds() + delta);
@@ -280,17 +293,21 @@ async function demoStage(team, room = rooms[1]) {
     }
 }
 
-async function trainingStage(id, room = rooms[2], question) {
+async function trainingStage(teamOld, room, question) {
     try {
-        const { data: team } = await axios.get(`/teams/${id}`);
+        const { data: team } = await axios.get(`/teams/${teamOld.id}`);
+        const { data: video } = await axios.get(`/videos/${question.videoId}`);
+        console.log(JSON.stringify(video));
         let now = new Date();
         console.log(`[${now}]: training stage for "${team.name}" started`);
 
+        qb.send("room_" + room.rpi, "setmode idle");
         qb.send("room_" + room.rpi, "setmode playing");
         qb.send("terminal_" + room.rpi, {
             team,
             time: times["TRAINING_ROOM"],
-            question,
+            questionId: question.id,
+            videoPath: video.path,
             texts: {
                 task: texts[team.languageId]["TASK_TEXT"],
                 target: texts[team.languageId]["TARGET_LABEL"],
