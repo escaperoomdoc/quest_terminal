@@ -24,6 +24,17 @@ async function apiVideosGet(app, req, res) {
 	}
 }
 
+async function apiVideoGet(app, req, res) {
+	try {
+		result = await app.db.videos.findOne({where: {id: req.params.id}, raw: true });
+		result.path = '/assets/' + result.id + '.mp4';
+		res.status(200).json(result);
+	}
+	catch(error) {
+		return res.status(400).json({error: 'get /api/video: ' + error});
+	}
+}
+
 async function apiVideosPut(app, req, res) {
 	try {
 		if (req.body.id && req.body.id !== req.params.id) throw 'wrong body id';
@@ -96,6 +107,9 @@ async function apiVideosPost(app, req, res) {
 module.exports = (app) => {
 	app.get( "/api/videos", (req, res) => {
 		apiVideosGet(app, req, res);
+	});
+	app.get( "/api/videos/:id", (req, res) => {
+		apiVideoGet(app, req, res);
 	});
 	app.put( "/api/videos/:id", (req, res) => {
 		apiVideosPut(app, req, res);
