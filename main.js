@@ -59,8 +59,8 @@ qb.on('disconnect', function() {
 });
 qb.on('receive', function(data) {
     console.log('[Queen Bridge]: ' + JSON.stringify(data));
+    let command = data.payload.command;
     if (data.srcId === 'terminal_manager') {
-        let command = data.payload.command;
         switch(command) {
             case 'start':
                 startGame(data.payload.id);
@@ -69,6 +69,15 @@ qb.on('receive', function(data) {
                 stopGame(data.payload.id);
                 break;
         }
+    }
+    else {
+        if (command === 'bonus') {
+            let id = data.payload.id;
+            let room = data.payload.room;
+            let state = data.payload.state;
+            activeTeams[id].bonus[room] = state;
+        }
+
     }
 });
 
@@ -216,10 +225,11 @@ async function startGame(id) {
 
         activeTeams[id] = {
             timers: [],
-            questions: []
+            questions: [],
+            bonus: {}
         };
         activeTeams[id].questions = await getQuestions(team.languageId, team.categoryId);
-        trainingStage(team, rooms[2], activeTeams[id].questions[0]);
+        // trainingStage(team, rooms[2], activeTeams[id].questions[0]);
         activeTeams[id].timers.push(
             setTimeout(countdownStage,
                 timeofBegin - Date.now() - times["COUNTDOWN"] * ms, team)
@@ -236,7 +246,7 @@ async function startGame(id) {
         delta += times["TRAINING_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(arenaStage,
-                timeofBegin - Date.now() + delta, team)
+                timeofBegin - Date.now() + delta, team, rooms[0], rooms[2].rpi)
         );
         delta += times["ARENA"] * ms;
         for (let i = 3; i < rooms.length - 1; i++) {
@@ -312,28 +322,34 @@ async function trainingStage(teamOld, room, question) {
                 task: texts[team.languageId]["TASK_TEXT"],
                 target: texts[team.languageId]["TARGET_LABEL"],
                 result: texts[team.languageId]["SCORE_LABEL"]
-            }
+            },
+            points: room.points,
         });
 
-        setTimeout(() => {
+        activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "play siren.mef");
-        }, (times["TRAINING_ROOM"] - 30 ) * ms);
-        setTimeout(() => {
+        }, (times["TRAINING_ROOM"] - 30 ) * ms));
+        activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "play countdown.mef");
-        }, (times["TRAINING_ROOM"] - 10 ) * ms);
-        setTimeout(() => {
+        }, (times["TRAINING_ROOM"] - 10 ) * ms));
+        activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "setmode win");
-        }, times["TRAINING_ROOM"] * ms);
+        }, times["TRAINING_ROOM"] * ms));
     }
     catch (e) {
         console.log(e);
     }
 }
 
-async function arenaStage(team, room = rooms[0]) {
+async function arenaStage(team, room, prevRoomName) {
     try {
         let now = new Date();
-        console.log(`[${now}]: arena stage for "${team.name}" started`);
+        if (activeTeams[team.id].bonus[prevRoomName]) {
+            console.log(`[${now}]: arena stage for "${team.name}" started`);
+        }
+        else {
+            console.log(`[${now}]: arena stage for "${team.name}" didn't start`);
+        }
     }
     catch (e) {
         console.log(e);
