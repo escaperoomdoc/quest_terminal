@@ -360,6 +360,9 @@ async function arenaStage(teamOld, room, question, prevRoomName) {
         }
         qb.send("room_" + room.rpi, "play back.mef");
         activeTeams[team.id].timers.push(setTimeout(() => {
+            qb.send("room_" + room.rpi, "play siren.mef");
+        }, (times["ARENA"] - 5 ) * ms));
+        activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "setmode idle");
         }, times["ARENA"] * ms));
     }
