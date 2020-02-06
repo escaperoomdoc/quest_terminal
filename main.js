@@ -246,7 +246,7 @@ async function startGame(id) {
         delta += times["TRAINING_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(arenaStage,
-                timeofBegin - Date.now() + delta, team, rooms[0], rooms[2].rpi)
+                timeofBegin - Date.now() + delta, team, rooms[0], activeTeams[id].questions[0], rooms[2].rpi)
         );
         delta += times["ARENA"] * ms;
         for (let i = 3; i < rooms.length - 1; i++) {
@@ -341,15 +341,27 @@ async function trainingStage(teamOld, room, question) {
     }
 }
 
-async function arenaStage(team, room, prevRoomName) {
+async function arenaStage(teamOld, room, question, prevRoomName) {
     try {
+        const { data: team } = await axios.get(`/teams/${teamOld.id}`);
         let now = new Date();
         if (activeTeams[team.id].bonus[prevRoomName]) {
             console.log(`[${now}]: arena stage for "${team.name}" started`);
+            qb.send("terminal_" + room.rpi, {
+                question,
+                time: times["ARENA"],
+                team,
+                points: room.points,
+            });
+            activeTeams[team.id].questions.shift();
         }
         else {
             console.log(`[${now}]: arena stage for "${team.name}" didn't start`);
         }
+        qb.send("room_" + room.rpi, "play back.mef");
+        activeTeams[team.id].timers.push(setTimeout(() => {
+            qb.send("room_" + room.rpi, "setmode idle");
+        }, times["ARENA"] * ms));
     }
     catch (e) {
         console.log(e);
