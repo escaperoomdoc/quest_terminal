@@ -5,4 +5,3 @@
 package-lock.json
 .env
 /db/backup
-terminal.db
