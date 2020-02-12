@@ -283,8 +283,9 @@ async function startGame(id) {
     }
 }
 
-async function countdownStage(team) {
+async function countdownStage(teamOld) {
     try {
+        const { data: team } = await axios.get(`/teams/${teamOld.id}`);
         let now = new Date();
         qb.send("terminal_countdown", {
             team,
