@@ -26,7 +26,7 @@ httpServer.listen(config.settings.httpPort, () => {});
 console.log(`terminal server started on ${config.settings.httpPort}...`);
 
 //vars
-let times, schedule, rooms, activeTeams = {}, texts;
+let times, schedule, rooms, teamLocation, activeTeams = {}, texts;
 const ms = 1000;
 
 db(app)
@@ -37,6 +37,13 @@ db(app)
         });
         getRooms().then((response) => {
             rooms = response;
+            teamLocation = rooms.map(item => {
+                return {
+                    room: item.name,
+                    team: null,
+                    timeOfEnd: null
+                }
+            })
         });
         checkTeams();
         getTexts().then((response) => {
@@ -83,6 +90,7 @@ qb.on('receive', function(data) {
 
 setTimeout(() => {
     qb.topic("/terminal/time");
+    qb.topic("/terminal/location");
 }, 500);
 setInterval(() => {
     qb.publish("/terminal/time", {
@@ -90,6 +98,12 @@ setInterval(() => {
         time: Date.now(),
     });
 }, 1000);
+setInterval(() => {
+    qb.publish("/terminal/location", {
+        type: "location",
+        locations: teamLocation
+    });
+}, 5000);
 
 // let teamQueue = [];
 //
@@ -227,52 +241,53 @@ async function startGame(id) {
         console.log(`start game for "${team.name}" at ${timeofBegin}`);
         team.timeofBegin = timeofBegin;
 
-
         activeTeams[id] = {
             timers: [],
             questions: [],
-            bonus: {}
+            bonus: {},
+            ...team,
+            room: null
         };
         activeTeams[id].questions = await getQuestions(team.languageId, team.categoryId);
         activeTeams[id].timers.push(
             setTimeout(countdownStage,
-                timeofBegin - Date.now() - times["COUNTDOWN"] * ms, team)
+                timeofBegin - Date.now() - times["COUNTDOWN"] * ms, team.id)
         );
         activeTeams[id].timers.push(
             setTimeout(demoStage,
-                timeofBegin - Date.now(), team)
+                timeofBegin - Date.now(), team.id),
         );
         let delta = times["DEMO_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(trainingStage,
-                timeofBegin - Date.now() + delta, team, rooms[2], activeTeams[id].questions[0])
+                timeofBegin - Date.now() + delta, team.id, rooms[2])
         );
         delta += times["TRAINING_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(arenaStage,
-                timeofBegin - Date.now() + delta, team, rooms[0], activeTeams[id].questions[0], rooms[2].rpi)
+                timeofBegin - Date.now() + delta, team.id, rooms[0], rooms[2].rpi)
         );
         delta += times["ARENA"] * ms;
         for (let i = 3; i < rooms.length - 1; i++) {
             activeTeams[id].timers.push(
                 setTimeout(genericStage,
-                    timeofBegin - Date.now() + delta, team, rooms[i], activeTeams[id].questions[0])
+                    timeofBegin - Date.now() + delta, team.id, rooms[i])
             );
             delta += times["GENERIC_ROOM"] * ms;
             activeTeams[id].timers.push(
                 setTimeout(arenaStage,
-                    timeofBegin - Date.now() + delta, team, rooms[0], activeTeams[id].questions[0], rooms[i].rpi)
+                    timeofBegin - Date.now() + delta, team.id, rooms[0], rooms[i].rpi)
             );
             delta += times["ARENA"] * ms;
         }
         activeTeams[id].timers.push(
             setTimeout(bonusStage,
-                timeofBegin - Date.now() + delta, team)
+                timeofBegin - Date.now() + delta, team.id)
         );
         delta += times["GENERIC_ROOM"] * ms;
         activeTeams[id].timers.push(
             setTimeout(finishStage,
-                timeofBegin - Date.now() + delta, team)
+                timeofBegin - Date.now() + delta, team.id)
         );
         let timeofEnd = new Date(timeofBegin);
         timeofEnd.setMilliseconds(timeofEnd.getMilliseconds() + delta);
@@ -283,9 +298,9 @@ async function startGame(id) {
     }
 }
 
-async function countdownStage(teamOld) {
+async function countdownStage(id) {
     try {
-        const { data: team } = await axios.get(`/teams/${teamOld.id}`);
+        const { data: team } = await axios.get(`/teams/${id}`);
         let now = new Date();
         qb.send("terminal_countdown", {
             team,
@@ -298,21 +313,37 @@ async function countdownStage(teamOld) {
     }
 }
 
-async function demoStage(team, room = rooms[1]) {
+async function demoStage(id, room = rooms[1]) {
     try {
+        const { data: team } = await axios.get(`/teams/${id}`);
         let now = new Date();
         console.log(`[${now}]: demo stage for "${team.name}" started`);
+
+        let index = teamLocation.findIndex((item => item.room === room.name));
+        if (index !== -1) {
+            teamLocation[index].team = team.name;
+            let timeOfEnd = new Date(now);
+            timeOfEnd.setSeconds(timeOfEnd.getSeconds() + times["TRAINING_ROOM"]);
+            teamLocation[index].timeOfEnd = timeOfEnd;
+        }
+
+        activeTeams[team.id].timers.push(setTimeout(() => {
+            teamLocation[index].team = null;
+            teamLocation[index].timeOfEnd = null;
+        }, times["DEMO_ROOM"] * ms));
+
     }
     catch (e) {
         console.log(e);
     }
 }
 
-async function trainingStage(teamOld, room, question) {
+async function trainingStage(id, room) {
     try {
-        const { data: team } = await axios.get(`/teams/${teamOld.id}`);
+        let question = activeTeams[id].questions[0];
+        const { data: team } = await axios.get(`/teams/${id}`);
         const { data: video } = await axios.get(`/videos/${question.videoId}`);
-        console.log(JSON.stringify(video));
+        // console.log(JSON.stringify(video));
         let now = new Date();
         console.log(`[${now}]: training stage for "${team.name}" started`);
 
@@ -331,6 +362,14 @@ async function trainingStage(teamOld, room, question) {
             points: room.points,
         });
 
+        let index = teamLocation.findIndex((item => item.room === room.name));
+        if (index !== -1) {
+            teamLocation[index].team = team.name;
+            let timeOfEnd = new Date(now);
+            timeOfEnd.setSeconds(timeOfEnd.getSeconds() + times["TRAINING_ROOM"]);
+            teamLocation[index].timeOfEnd = timeOfEnd;
+        }
+
         activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "play siren.mef");
         }, (times["TRAINING_ROOM"] - 30 ) * ms));
@@ -339,6 +378,8 @@ async function trainingStage(teamOld, room, question) {
         }, (times["TRAINING_ROOM"] - 10 ) * ms));
         activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "setmode win");
+            teamLocation[index].team = null;
+            teamLocation[index].timeOfEnd = null;
         }, times["TRAINING_ROOM"] * ms));
     }
     catch (e) {
@@ -346,9 +387,10 @@ async function trainingStage(teamOld, room, question) {
     }
 }
 
-async function arenaStage(teamOld, room, question, prevRoomName) {
+async function arenaStage(id, room, prevRoomName) {
     try {
-        const { data: team } = await axios.get(`/teams/${teamOld.id}`);
+        let question = activeTeams[id].questions[0];
+        const { data: team } = await axios.get(`/teams/${id}`);
         let now = new Date();
         if (activeTeams[team.id].bonus[prevRoomName]) {
             console.log(`[${now}]: arena stage for "${team.name}" started`);
@@ -363,12 +405,20 @@ async function arenaStage(teamOld, room, question, prevRoomName) {
         else {
             console.log(`[${now}]: arena stage for "${team.name}" didn't start`);
         }
+
+        teamLocation[0].team = team.name;
+        let timeOfEnd = new Date(now);
+        timeOfEnd.setSeconds(timeOfEnd.getSeconds() + times["ARENA"]);
+        teamLocation[0].timeOfEnd = timeOfEnd;
+
         qb.send("room_" + room.rpi, "play back.mef");
         activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "play siren.mef");
         }, (times["ARENA"] - 5 ) * ms));
         activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "setmode idle");
+            teamLocation[0].team = null;
+            teamLocation[0].timeOfEnd = null;
         }, times["ARENA"] * ms));
     }
     catch (e) {
@@ -376,11 +426,12 @@ async function arenaStage(teamOld, room, question, prevRoomName) {
     }
 }
 
-async function genericStage(teamOld, room, question) {
+async function genericStage(id, room) {
     try {
-        const { data: team } = await axios.get(`/teams/${teamOld.id}`);
+        let question = activeTeams[id].questions[0];
+        const { data: team } = await axios.get(`/teams/${id}`);
         const { data: video } = await axios.get(`/videos/${question.videoId}`);
-        console.log(JSON.stringify(video));
+        // console.log(JSON.stringify(video));
         let now = new Date();
         console.log(`[${now}]: ${room.name.toLowerCase()} stage for "${team.name}" started`);
 
@@ -400,6 +451,14 @@ async function genericStage(teamOld, room, question) {
             points: room.points,
         });
 
+        let index = teamLocation.findIndex((item => item.room === room.name));
+        if (index !== -1) {
+            teamLocation[index].team = team.name;
+            let timeOfEnd = new Date(now);
+            timeOfEnd.setSeconds(timeOfEnd.getSeconds() + times["TRAINING_ROOM"]);
+            teamLocation[index].timeOfEnd = timeOfEnd;
+        }
+
         activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "play siren.mef");
         }, (times["GENERIC_ROOM"] - 30 ) * ms));
@@ -408,6 +467,8 @@ async function genericStage(teamOld, room, question) {
         }, (times["GENERIC_ROOM"] - 10 ) * ms));
         activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "setmode win");
+            teamLocation[index].team = null;
+            teamLocation[index].timeOfEnd = null;
         }, times["GENERIC_ROOM"] * ms));
     }
     catch (e) {
@@ -415,9 +476,9 @@ async function genericStage(teamOld, room, question) {
     }
 }
 
-async function bonusStage(teamOld, room = rooms[rooms.length - 1]) {
+async function bonusStage(id, room = rooms[rooms.length - 1]) {
     try {
-        const { data: team } = await axios.get(`/teams/${teamOld.id}`);
+        const { data: team } = await axios.get(`/teams/${id}`);
         let now = new Date();
         console.log(`[${now}]: bonus stage for "${team.name}" started`);
 
@@ -434,6 +495,14 @@ async function bonusStage(teamOld, room = rooms[rooms.length - 1]) {
             points: room.points,
         });
 
+        let index = teamLocation.findIndex((item => item.room === room.name));
+        if (index !== -1) {
+            teamLocation[index].team = team.name;
+            let timeOfEnd = new Date(now);
+            timeOfEnd.setSeconds(timeOfEnd.getSeconds() + times["TRAINING_ROOM"]);
+            teamLocation[index].timeOfEnd = timeOfEnd;
+        }
+
         activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "play siren.mef");
         }, (times["GENERIC_ROOM"] - 30 ) * ms));
@@ -442,6 +511,8 @@ async function bonusStage(teamOld, room = rooms[rooms.length - 1]) {
         }, (times["GENERIC_ROOM"] - 10 ) * ms));
         activeTeams[team.id].timers.push(setTimeout(() => {
             qb.send("room_" + room.rpi, "setmode win");
+            teamLocation[index].team = null;
+            teamLocation[index].timeOfEnd = null;
         }, times["GENERIC_ROOM"] * ms));
     }
     catch (e) {
@@ -449,8 +520,9 @@ async function bonusStage(teamOld, room = rooms[rooms.length - 1]) {
     }
 }
 
-async function finishStage(team) {
+async function finishStage(id) {
     try {
+        const { data: team } = await axios.get(`/teams/${id}`);
         let now = new Date();
         console.log(`[${now}]: finishing game for "${team.name}"`);
         await axios.put('/teams/' + team.id, { finished: true });
@@ -479,6 +551,11 @@ async function stopGame(id) {
             console.log(`stop game for "${team.name}"`);
         } else {
             console.log(`game for "${team.name}" didn't start yet`);
+        }
+        let index = teamLocation.findIndex((item => item.team === team.name));
+        if (index !== -1) {
+            teamLocation[index].team = null;
+            teamLocation[index].timeOfEnd = null;
         }
     }
     catch (e) {
