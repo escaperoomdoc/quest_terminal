@@ -255,7 +255,7 @@ async function startGame(id) {
         );
         activeTeams[id].timers.push(
             setTimeout(demoStage,
-                timeofBegin - Date.now(), team.id),
+                timeofBegin - Date.now(), team.id, rooms[1]),
         );
         let delta = times["DEMO_ROOM"] * ms;
         activeTeams[id].timers.push(
@@ -313,21 +313,46 @@ async function countdownStage(id) {
     }
 }
 
-async function demoStage(id, room = rooms[1]) {
+async function demoStage(id, room) {
     try {
+        let question = activeTeams[id].questions[0]; //сделать защиту от пустого массива! и сделать возможность смены языка и тематики
+        const { data: video } = await axios.get(`/videos/${question.videoId}`);
         const { data: team } = await axios.get(`/teams/${id}`);
+        activeTeams[team.id].questions.shift();
+
         let now = new Date();
         console.log(`[${now}]: demo stage for "${team.name}" started`);
+
+        qb.send("room_" + room.rpi, "setmode idle");
+        qb.send("room_" + room.rpi, "setmode playing");
+        qb.send("terminal_" + room.rpi, {
+            team,
+            time: times["DEMO_ROOM"],
+            videoPath: video.path,
+            texts: {
+                task: texts[team.languageId].tasks[room.id],
+                target: texts[team.languageId]["TARGET_LABEL"],
+                result: texts[team.languageId]["SCORE_LABEL"]
+            },
+            points: room.points,
+        });
 
         let index = teamLocation.findIndex((item => item.room === room.name));
         if (index !== -1) {
             teamLocation[index].team = team.name;
             let timeOfEnd = new Date(now);
-            timeOfEnd.setSeconds(timeOfEnd.getSeconds() + times["TRAINING_ROOM"]);
+            timeOfEnd.setSeconds(timeOfEnd.getSeconds() + times["DEMO_ROOM"]);
             teamLocation[index].timeOfEnd = timeOfEnd;
         }
 
         activeTeams[team.id].timers.push(setTimeout(() => {
+            qb.send("room_" + room.rpi, "play siren.mef");
+        }, (times["DEMO_ROOM"] - 30 ) * ms));
+        activeTeams[team.id].timers.push(setTimeout(() => {
+            qb.send("room_" + room.rpi, "play countdown.mef");
+        }, (times["DEMO_ROOM"] - 10 ) * ms));
+        activeTeams[team.id].timers.push(setTimeout(() => {
+            qb.send("room_" + room.rpi, "setmode win");
             teamLocation[index].team = null;
             teamLocation[index].timeOfEnd = null;
         }, times["DEMO_ROOM"] * ms));
@@ -343,7 +368,7 @@ async function trainingStage(id, room) {
         let question = activeTeams[id].questions[0];
         const { data: team } = await axios.get(`/teams/${id}`);
         const { data: video } = await axios.get(`/videos/${question.videoId}`);
-        // console.log(JSON.stringify(video));
+
         let now = new Date();
         console.log(`[${now}]: training stage for "${team.name}" started`);
 
