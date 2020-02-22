@@ -33,7 +33,7 @@ db(app)
     .then(() =>{
         getTimes().then((response) => {
             times = response;
-            schedule = getSchedule();
+            schedule = getSchedule(true);
         });
         getRooms().then((response) => {
             rooms = response;
@@ -53,7 +53,7 @@ db(app)
 api(app);
 
 let qb = new QueenBridge(config.settings.queenbridgeUrl, {
-    id: "bpm_terminal_",
+    id: "bpm_terminal",
     keepOffline: 10000,
     override: true
 });
@@ -206,12 +206,12 @@ async function checkTeams() {
     }
 }
 
-function getSchedule() {
+function getSchedule(first = false) {
     let interval = times["TEAMS_INTERVAL"];
 
     let start = new Date();
     start.setHours(6, 0, 0, 0);
-    // console.log(start.toISOString());
+    // console.log(start);
 
     let finish = new Date(start);
     finish.setHours(finish.getHours() + 24);
@@ -224,7 +224,18 @@ function getSchedule() {
         newTime.setSeconds(newTime.getSeconds() + interval);
         schedule.push({time: newTime});
     }
-    // console.log(schedule[schedule.length - 1].time.toISOString());
+
+    if (first) {
+        let midnight = new Date();
+        midnight.setHours(0, 0, 0, 0);
+        midnight.setSeconds(midnight.getSeconds() + interval);
+        while (schedule[0].time > midnight) {
+            let newTime =  new Date(schedule[0].time);
+            newTime.setSeconds(newTime.getSeconds() - interval);
+            schedule.unshift({time: newTime});
+            // console.log(schedule[0].time.toString());
+        }
+    }
     return schedule;
 }
 
@@ -274,7 +285,7 @@ async function startGame(id) {
         );
         delta += times["ARENA"] * ms;
         //launch generic rooms
-        for (let i = 3; i < rooms.length - 1; i++) {
+        for (let i = 3; i < rooms.length; i++) {
             activeTeams[id].timers.push(
                 setTimeout(genericStage,
                     timeofBegin - Date.now() + delta, team.id, rooms[i], times["GENERIC_ROOM"])
@@ -287,11 +298,11 @@ async function startGame(id) {
             delta += times["ARENA"] * ms;
         }
         //launch bonus room
-        activeTeams[id].timers.push(
-            setTimeout(genericStage,
-                timeofBegin - Date.now() + delta, team.id, rooms[rooms.length - 1], times["GENERIC_ROOM"])
-        );
-        delta += times["GENERIC_ROOM"] * ms;
+        // activeTeams[id].timers.push(
+        //     setTimeout(genericStage,
+        //         timeofBegin - Date.now() + delta, team.id, rooms[rooms.length - 1], times["GENERIC_ROOM"])
+        // );
+        // delta += times["GENERIC_ROOM"] * ms;
         //launch finish stage
         activeTeams[id].timers.push(
             setTimeout(finishStage,
@@ -468,7 +479,8 @@ function scheduleTeam(id) {
             return schedule[i].time;
         }
     }
-    //написать здесь чистку старого расписания и составление нового
+    schedule = getSchedule();
+    return scheduleTeam(id);
 }
 
 // async function trainingStage(id, room, time) {

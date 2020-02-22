@@ -1,7 +1,7 @@
 {
 	"settings": {
 		"httpPort": 80,
-		"queenbridgeUrl": "http://dsi.su:3030"
+		"queenbridgeUrl": "http://localhost:3030"
 	},
 	"db": {
 		"dialect": "sqlite",
