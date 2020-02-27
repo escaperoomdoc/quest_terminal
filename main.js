@@ -88,18 +88,18 @@ qb.on('receive', function(data) {
     }
 });
 
-setTimeout(() => {
-    qb.topic("/terminal/time");
-    qb.topic("/terminal/location");
-}, 500);
+// setTimeout(() => {
+//     qb.topic("/terminal/time");
+//     qb.topic("/terminal/location");
+// }, 500);
 setInterval(() => {
-    qb.publish("/terminal/time", {
+    qb.publish("terminal/time", {
         type: "time",
         time: Date.now(),
     });
 }, 1000);
 setInterval(() => {
-    qb.publish("/terminal/location", {
+    qb.publish("terminal/location", {
         type: "location",
         locations: teamLocation
     });
@@ -306,7 +306,7 @@ async function startGame(id) {
         //launch finish stage
         activeTeams[id].timers.push(
             setTimeout(finishStage,
-                timeofBegin - Date.now() + delta, team.id)
+                timeofBegin - Date.now() + delta, team.id, rooms[0])
         );
 
         let timeofEnd = new Date(timeofBegin);
@@ -322,7 +322,11 @@ async function countdownStage(id) {
     try {
         const { data: team } = await axios.get(`/teams/${id}`);
         let now = new Date();
-        qb.send("terminal_countdown", {
+        // qb.send("terminal_countdown", {
+        //     team,
+        //     time: times["COUNTDOWN"]
+        // });
+        qb.publish("terminal/countdown", {
             team,
             time: times["COUNTDOWN"]
         });
@@ -426,13 +430,15 @@ async function genericStage(id, room, time) {
     }
 }
 
-async function finishStage(id) {
+async function finishStage(id, room) {
     try {
         const { data: team } = await axios.get(`/teams/${id}`);
         let now = new Date();
         console.log(`[${now}]: finishing game for "${team.name}"`);
         await axios.put('/teams/' + team.id, { finished: true });
         delete activeTeams[team.id];
+
+        qb.send("room_" + room.rpi, "play debriefing.mef");
     }
     catch (e) {
         console.log(e);
