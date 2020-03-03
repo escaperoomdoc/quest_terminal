@@ -67,7 +67,6 @@ qb.on('disconnect', function() {
 qb.on('receive', function(data) {
     console.log('[Queen Bridge]: ' + JSON.stringify(data));
     let command = data.payload.command;
-    if (data.srcId === 'terminal_manager') {
         switch(command) {
             case 'start':
                 startGame(data.payload.id);
@@ -75,17 +74,12 @@ qb.on('receive', function(data) {
             case 'stop':
                 stopGame(data.payload.id);
                 break;
+            case 'bonus':
+                let id = data.payload.id;
+                let room = data.payload.room;
+                let state = data.payload.state;
+                activeTeams[id].bonus[room] = state;
         }
-    }
-    else {
-        if (command === 'bonus') {
-            let id = data.payload.id;
-            let room = data.payload.room;
-            let state = data.payload.state;
-            activeTeams[id].bonus[room] = state;
-        }
-
-    }
 });
 
 // setTimeout(() => {
