@@ -61,9 +61,12 @@ let qb = new QueenBridge(config.settings.queenbridgeUrl, {
 qb.on('connect', function() {
     console.log('connected to Queen Bridge');
 });
+
 qb.on('disconnect', function() {
     console.log('disconnected');
 });
+
+let shelljs = require('shelljs');
 qb.on('receive', function(data) {
     console.log('[Queen Bridge]: ' + JSON.stringify(data));
     let command = data.payload.command;
@@ -79,6 +82,14 @@ qb.on('receive', function(data) {
                 let room = data.payload.room;
                 let state = data.payload.state;
                 activeTeams[id].bonus[room] = state;
+                break;
+            case 'reboot':
+                shelljs.exec('reboot.bat', { async: true, silent: true });
+                break;
+            case 'shutdown':
+                shelljs.exec('shutdown.bat', { async: true, silent: true });
+                break;
+
         }
 });
 
@@ -279,7 +290,7 @@ async function startGame(id) {
         );
         delta += times["ARENA"] * ms;
         //launch generic rooms
-        for (let i = 3; i < rooms.length; i++) {
+        for (let i = 3; i < rooms.length - 1; i++) {
             activeTeams[id].timers.push(
                 setTimeout(genericStage,
                     timeofBegin - Date.now() + delta, team.id, rooms[i], times["GENERIC_ROOM"])
@@ -292,11 +303,11 @@ async function startGame(id) {
             delta += times["ARENA"] * ms;
         }
         //launch bonus room
-        // activeTeams[id].timers.push(
-        //     setTimeout(genericStage,
-        //         timeofBegin - Date.now() + delta, team.id, rooms[rooms.length - 1], times["GENERIC_ROOM"])
-        // );
-        // delta += times["GENERIC_ROOM"] * ms;
+        activeTeams[id].timers.push(
+            setTimeout(genericStage,
+                timeofBegin - Date.now() + delta, team.id, rooms[rooms.length - 1], times["GENERIC_ROOM"])
+        );
+        delta += times["GENERIC_ROOM"] * ms;
         //launch finish stage
         activeTeams[id].timers.push(
             setTimeout(finishStage,
