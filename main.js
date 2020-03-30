@@ -443,6 +443,9 @@ async function finishStage(id, room) {
         await axios.put('/teams/' + team.id, { finished: true });
         delete activeTeams[team.id];
 
+        qb.send("terminal_" + room.rpi, {
+            time: times["ARENA"],
+        });
         qb.send("room_" + room.rpi, "play debriefing.mef");
     }
     catch (e) {
